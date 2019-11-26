@@ -15,7 +15,9 @@ use mint::Point2;
 struct Platformer {
     rng: ThreadRng,
     dt: std::time::Duration,
-    guy: Sprite
+    guy: Sprite,
+    explosion: Sprite,
+    laser: Sprite,
 }
 
 impl Platformer {
@@ -23,7 +25,9 @@ impl Platformer {
         Platformer {
             dt: std::time::Duration::new(0,0),
             rng: thread_rng(),
-            guy: Sprite::load(3, 5, Path::new("/guy.png"), ctx)
+            guy: Sprite::load(3, 5, Path::new("/guy.png"), ctx),
+            explosion: Sprite::load(6, 5, Path::new("/explosion.png"), ctx),
+            laser: Sprite::load(4, 5, Path::new("/laser.png"), ctx),
         }
 
     }
@@ -83,6 +87,8 @@ impl ggez::event::EventHandler for Platformer {
     fn update(&mut self, ctx: &mut Context) -> GameResult<()> {
         self.dt = timer::delta(ctx);
         self.guy.inc_frame_timer();
+        self.explosion.inc_frame_timer();
+        self.laser.inc_frame_timer();
 
         Ok(())
     }
@@ -112,6 +118,16 @@ impl ggez::event::EventHandler for Platformer {
                       DrawParam::default()
                         .scale(Vector2 {x:5., y:5.})
                         .dest(Point2 {x: 200.0, y: 200.0})
+                     );
+        self.explosion.draw(ctx, 
+                      DrawParam::default()
+                        .scale(Vector2 {x:5., y:5.})
+                        .dest(Point2 {x: 300.0, y: 200.0})
+                     );
+        self.laser.draw(ctx, 
+                      DrawParam::default()
+                        .scale(Vector2 {x:5., y:5.})
+                        .dest(Point2 {x: 400.0, y: 200.0})
                      );
 
         present(ctx)
