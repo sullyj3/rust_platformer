@@ -18,18 +18,22 @@ struct Platformer {
     guy: Sprite,
     explosion: Sprite,
     laser: Sprite,
+    ground: Image,
 }
 
 impl Platformer {
     fn new(ctx: &mut Context) -> Platformer {
-        Platformer {
+        let mut platformer = Platformer {
             dt: std::time::Duration::new(0,0),
             rng: thread_rng(),
             guy: Sprite::load(3, 5, Path::new("/guy.png"), ctx),
             explosion: Sprite::load(6, 5, Path::new("/explosion.png"), ctx),
             laser: Sprite::load(4, 5, Path::new("/laser.png"), ctx),
-        }
+            ground: Image::new(ctx, Path::new("/ground.png")).unwrap(),
+        };
+        platformer.ground.set_filter(FilterMode::Nearest);
 
+        platformer
     }
 }
 
@@ -129,6 +133,11 @@ impl ggez::event::EventHandler for Platformer {
                         .scale(Vector2 {x:5., y:5.})
                         .dest(Point2 {x: 400.0, y: 200.0})
                      );
+        self.ground.draw(ctx,
+                         DrawParam::default()
+                         .scale(Vector2 {x:5., y:5.})
+                         .dest(Point2 {x: 200.0, y: 400.0})
+                        );
 
         present(ctx)
     }
