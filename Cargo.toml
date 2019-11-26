@@ -1,0 +1,8 @@
+[package]
+name = "rust_platformer"
+version = "0.1.0"
+authors = ["James Sully <sullyj3@gmail.com>"]
+
+[dependencies]
+ggez = "0.5"
+rand = "0.7"
