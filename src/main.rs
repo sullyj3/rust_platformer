@@ -20,14 +20,10 @@ struct Platformer {
 
 impl Platformer {
     fn new(ctx: &mut Context) -> Platformer {
-        let mut guy_sheet: Image = Image::new(ctx, Path::new("/guy.png"))
-            .expect("sprite not found!");
-        guy_sheet.set_filter(FilterMode::Nearest);
-
         Platformer {
             dt: std::time::Duration::new(0,0),
             rng: thread_rng(),
-            guy: Sprite::new(3,5,guy_sheet)
+            guy: Sprite::load(3, 5, Path::new("/guy.png"), ctx)
         }
 
     }
