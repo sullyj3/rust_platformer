@@ -2,15 +2,16 @@ extern crate ggez;
 extern crate rand;
 
 use std::path::*;
+// use std::collections::HashMap;
 
 use rand::thread_rng;
 use rand::rngs::ThreadRng;
 
 use ggez::*;
 use ggez::graphics::*;
+use ggez::event::{KeyCode, KeyMods, quit};
 
-use mint::Vector2;
-use mint::Point2;
+use nalgebra::*;
 
 struct Platformer {
     rng: ThreadRng,
@@ -19,6 +20,8 @@ struct Platformer {
     explosion: Sprite,
     laser: Sprite,
     ground: Image,
+
+    avatar: Avatar
 }
 
 impl Platformer {
@@ -30,10 +33,32 @@ impl Platformer {
             explosion: Sprite::load(6, 5, Path::new("/explosion.png"), ctx),
             laser: Sprite::load(4, 5, Path::new("/laser.png"), ctx),
             ground: Image::new(ctx, Path::new("/ground.png")).unwrap(),
+
+            avatar: Avatar { 
+                position: Point2::new(500., 500.),
+                velocity: Vector2::new(0., 0.)
+            }
         };
         platformer.ground.set_filter(FilterMode::Nearest);
 
         platformer
+    }
+}
+
+const AVATAR_H_SPEED: f32 = 6.;
+
+struct Avatar {
+    position: Point2<f32>,
+    velocity: Vector2<f32>
+}
+
+impl Avatar {
+    fn left(&mut self) {
+        self.velocity = Vector2::new(-AVATAR_H_SPEED, 0.);
+    }
+
+    fn right(&mut self) {
+        self.velocity = Vector2::new(AVATAR_H_SPEED, 0.);
     }
 }
 
@@ -42,6 +67,20 @@ struct Sprite {
     n_frames: i32,
     frame_duration: i32,
     sheet: Image
+}
+
+struct SpriteParam {
+    n_frames: i32,
+    frame_duration: i32
+}
+
+impl Default for SpriteParam {
+    fn default() -> SpriteParam {
+        SpriteParam {
+            n_frames: 1,
+            frame_duration: 1
+        }
+    }
 }
 
 impl Sprite {
@@ -88,11 +127,22 @@ impl Sprite {
 
 impl ggez::event::EventHandler for Platformer {
 
+    fn key_down_event(&mut self, ctx: &mut Context, keycode: KeyCode, _keymod: KeyMods, _repeat: bool) {
+        match keycode {
+            KeyCode::Left => self.avatar.left(),
+            KeyCode::Right => self.avatar.right(),
+            KeyCode::Escape => quit(ctx),
+            _ => {}
+        }
+    }
+
     fn update(&mut self, ctx: &mut Context) -> GameResult<()> {
         self.dt = timer::delta(ctx);
         self.guy.inc_frame_timer();
         self.explosion.inc_frame_timer();
         self.laser.inc_frame_timer();
+
+        self.avatar.position += self.avatar.velocity;
 
         Ok(())
     }
@@ -115,28 +165,27 @@ impl ggez::event::EventHandler for Platformer {
 
 
         perf.draw( ctx, DrawParam::default() );
-        // debug_msg.draw( ctx, DrawParam::default().dest(Point2 {x: 0., y: 20.}) );
 
 
         self.guy.draw(ctx, 
                       DrawParam::default()
-                        .scale(Vector2 {x:5., y:5.})
-                        .dest(Point2 {x: 200.0, y: 200.0})
+                        .scale(Vector2::new(5., 5.))
+                        .dest(self.avatar.position)
                      );
         self.explosion.draw(ctx, 
                       DrawParam::default()
-                        .scale(Vector2 {x:5., y:5.})
-                        .dest(Point2 {x: 300.0, y: 200.0})
+                        .scale(Vector2::new(5., 5.))
+                        .dest(Point2::new(300.0, 200.0))
                      );
         self.laser.draw(ctx, 
                       DrawParam::default()
-                        .scale(Vector2 {x:5., y:5.})
-                        .dest(Point2 {x: 400.0, y: 200.0})
+                        .scale(Vector2::new(5., 5.))
+                        .dest(Point2::new(400.0, 200.0))
                      );
         self.ground.draw(ctx,
                          DrawParam::default()
-                         .scale(Vector2 {x:5., y:5.})
-                         .dest(Point2 {x: 200.0, y: 400.0})
+                         .scale(Vector2::new(5., 5.))
+                         .dest(Point2::new(200.0, 400.0))
                         );
 
         present(ctx)
