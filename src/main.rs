@@ -1,4 +1,5 @@
 extern crate ggez;
+//extern crate cgmath;
 extern crate rand;
 
 use std::path::*;
@@ -11,9 +12,12 @@ use ggez::*;
 use ggez::graphics::*;
 use ggez::event::{KeyCode, KeyMods, quit};
 
+//use cgmath::*;
 use nalgebra::*;
 
 struct Platformer {
+    input: InputState,
+
     rng: ThreadRng,
     dt: std::time::Duration,
     guy: Sprite,
@@ -37,6 +41,14 @@ impl Platformer {
             avatar: Avatar { 
                 position: Point2::new(500., 500.),
                 velocity: Vector2::new(0., 0.)
+            },
+            input: InputState {
+                arrowLeftDown:  false,
+                arrowRightDown: false,
+                arrowUpDown:    false,
+                arrowDownDown:  false,
+
+                spaceDown:      false
             }
         };
         platformer.ground.set_filter(FilterMode::Nearest);
@@ -46,6 +58,7 @@ impl Platformer {
 }
 
 const AVATAR_H_SPEED: f32 = 6.;
+const AVATAR_V_SPEED: f32 = 6.;
 
 struct Avatar {
     position: Point2<f32>,
@@ -53,12 +66,33 @@ struct Avatar {
 }
 
 impl Avatar {
-    fn left(&mut self) {
-        self.velocity = Vector2::new(-AVATAR_H_SPEED, 0.);
+    fn key_down_event(&mut self, keyCode: KeyCode, _input: &InputState) {
+        match keyCode {
+            KeyCode::Up    => self.velocity.y = -AVATAR_V_SPEED,
+            KeyCode::Down  => self.velocity.y = AVATAR_V_SPEED,
+            KeyCode::Left  => self.velocity.x = -AVATAR_H_SPEED,
+            KeyCode::Right => self.velocity.x = AVATAR_H_SPEED,
+            _ => {}
+        }
     }
 
-    fn right(&mut self) {
-        self.velocity = Vector2::new(AVATAR_H_SPEED, 0.);
+    fn key_up_event(&mut self, keyCode: KeyCode, input: &InputState) {
+        match keyCode {
+            KeyCode::Up    => {
+                self.velocity.y = if input.arrowDownDown { AVATAR_V_SPEED } else { 0. }
+            }
+            KeyCode::Down => {
+                self.velocity.y = if input.arrowUpDown { -AVATAR_V_SPEED } else { 0. }
+            }
+
+            KeyCode::Left => {
+                self.velocity.x = if input.arrowRightDown { AVATAR_H_SPEED } else { 0. }
+            } 
+            KeyCode::Right => {
+                self.velocity.x = if input.arrowLeftDown { -AVATAR_H_SPEED } else { 0. }
+            } 
+            _ => {}
+        }
     }
 }
 
@@ -125,15 +159,42 @@ impl Sprite {
     }
 }
 
+struct InputState {
+    arrowLeftDown: bool,
+    arrowRightDown: bool,
+    arrowUpDown: bool,
+    arrowDownDown: bool,
+
+    spaceDown: bool
+}
+
 impl ggez::event::EventHandler for Platformer {
 
     fn key_down_event(&mut self, ctx: &mut Context, keycode: KeyCode, _keymod: KeyMods, _repeat: bool) {
         match keycode {
-            KeyCode::Left => self.avatar.left(),
-            KeyCode::Right => self.avatar.right(),
+            KeyCode::Left => self.input.arrowLeftDown = true,
+            KeyCode::Right => self.input.arrowRightDown = true,
+            KeyCode::Up => self.input.arrowUpDown = true,
+            KeyCode::Down => self.input.arrowDownDown = true,
+
             KeyCode::Escape => quit(ctx),
             _ => {}
         }
+
+        self.avatar.key_down_event(keycode, &self.input);
+    }
+
+    fn key_up_event(&mut self, ctx: &mut Context, keycode: KeyCode, _keymod: KeyMods) {
+        match keycode {
+            KeyCode::Left => self.input.arrowLeftDown = false,
+            KeyCode::Right => self.input.arrowRightDown = false,
+            KeyCode::Up => self.input.arrowUpDown = false,
+            KeyCode::Down => self.input.arrowDownDown = false,
+            KeyCode::Escape => quit(ctx),
+            _ => {}
+        }
+
+        self.avatar.key_up_event(keycode, &self.input);
     }
 
     fn update(&mut self, ctx: &mut Context) -> GameResult<()> {

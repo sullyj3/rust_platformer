@@ -6,3 +6,4 @@ authors = ["James Sully <sullyj3@gmail.com>"]
 [dependencies]
 ggez = "0.5"
 rand = "0.7"
+cgmath = "0.17"
