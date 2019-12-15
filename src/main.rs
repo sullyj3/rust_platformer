@@ -161,14 +161,10 @@ impl Sprite {
     }
 
     fn draw(&self, ctx: &mut Context, dest: Point2<i32>) -> GameResult<()> {
-        let iDest: Point2<i32> = PIXEL_SIZE * dest;
-        // @hack I don't understand nalgebra, how do I do this properly?
-        let fDest: Point2<f32> = Point2::new(iDest.x as f32, iDest.y as f32);
-        let param = DrawParam::default().src(self.curr_frame_rect())
-                                        .dest(fDest)
-                                        .scale(Vector2::new(PIXEL_SIZE as f32, PIXEL_SIZE as f32));
-                                        
-        self.sheet.draw(ctx, param)
+        let drawParam = PixelDrawParam::default().src(self.curr_frame_rect())
+                                                 .dest(dest);
+
+        self.sheet.pixelDraw(ctx, drawParam)
     }
 }
 
@@ -280,7 +276,7 @@ impl ggez::event::EventHandler for Platformer {
 }
 
 trait DrawPixelSpace {
-    fn pixelDraw(&self, ctx: &mut Context, drawParam: DrawParam, position: Point2<i32>);
+    fn pixelDraw(&self, ctx: &mut Context, pixelDrawParam: PixelDrawParam) -> GameResult<()>;
 }
 
 struct PixelDrawParam {
@@ -288,6 +284,24 @@ struct PixelDrawParam {
     dest: Point2<i32>,
     scale: Vector2<f32>,
     offset: Point2<f32>
+}
+
+impl PixelDrawParam {
+    fn toDrawParam(&self) -> DrawParam {
+        DrawParam::default()
+            .src(self.src)
+            .dest(floatP2(self.dest * PIXEL_SIZE))
+            .scale(self.scale * PIXEL_SIZE as f32)
+            .offset(self.offset * PIXEL_SIZE as f32)
+    }
+
+    fn src(&self, src: Rect) -> PixelDrawParam {
+        PixelDrawParam { src: src, ..*self }
+    }
+
+    fn dest(&self, dest: Point2<i32>) -> PixelDrawParam {
+        PixelDrawParam { dest: dest, ..*self }
+    }
 }
 
 impl Default for PixelDrawParam {
@@ -300,11 +314,8 @@ impl Default for PixelDrawParam {
 }
 
 impl DrawPixelSpace for Image {
-    fn pixelDraw(&self, ctx: &mut Context, drawParam: DrawParam, position: Point2<i32>) {
-        let drawParam = drawParam.dest(floatP2(position * PIXEL_SIZE))
-                                .scale(Vector2::new(PIXEL_SIZE as f32, PIXEL_SIZE as f32));
-
-        self.draw(ctx, drawParam);
+    fn pixelDraw(&self, ctx: &mut Context, pixelDrawParam: PixelDrawParam) -> GameResult<()> {
+        self.draw(ctx, pixelDrawParam.toDrawParam())
     }
 }
 
