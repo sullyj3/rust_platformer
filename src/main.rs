@@ -8,12 +8,12 @@ use std::io::prelude::*;
 use std::path::*;
 // use std::collections::HashMap;
 
-use rand::thread_rng;
 use rand::rngs::ThreadRng;
+use rand::thread_rng;
 
-use ggez::*;
+use ggez::event::{quit, KeyCode, KeyMods};
 use ggez::graphics::*;
-use ggez::event::{KeyCode, KeyMods, quit};
+use ggez::*;
 
 //use cgmath::*;
 use nalgebra::*;
@@ -31,8 +31,7 @@ struct Platformer {
     ground: Image,
 
     avatar: Avatar,
-    current_level: Level
-
+    current_level: Level,
 }
 
 impl Platformer {
@@ -42,7 +41,7 @@ impl Platformer {
         let current_level = Level::load(Path::new("/levels/level1.txt"), ctx);
 
         Platformer {
-            dt: std::time::Duration::new(0,0),
+            dt: std::time::Duration::new(0, 0),
             rng: thread_rng(),
 
             guy: Sprite::load(3, 5, Path::new("/guy.png"), ctx),
@@ -50,19 +49,19 @@ impl Platformer {
             laser: Sprite::load(4, 5, Path::new("/laser.png"), ctx),
             ground: groundImg,
 
-            avatar: Avatar { 
-                position: floatP2(current_level.playerStartLoc),
-                velocity: Vector2::new(0., 0.)
+            avatar: Avatar {
+                position: float_p2(current_level.playerStartLoc),
+                velocity: Vector2::new(0., 0.),
             },
             input: InputState {
-                arrowLeftDown:  false,
-                arrowRightDown: false,
-                arrowUpDown:    false,
-                arrowDownDown:  false,
+                arrow_left_down: false,
+                arrow_right_down: false,
+                arrow_up_down: false,
+                arrow_down_down: false,
 
-                spaceDown:      false
+                space_down: false,
             },
-            current_level: current_level
+            current_level: current_level,
         }
     }
 }
@@ -73,15 +72,15 @@ const AVATAR_V_SPEED: f32 = 1.;
 struct Avatar {
     // pixel space
     position: Point2<f32>,
-    velocity: Vector2<f32>
+    velocity: Vector2<f32>,
 }
 
 impl Avatar {
     fn key_down_event(&mut self, keyCode: KeyCode, _input: &InputState) {
         match keyCode {
-            KeyCode::Up    => self.velocity.y = -AVATAR_V_SPEED,
-            KeyCode::Down  => self.velocity.y = AVATAR_V_SPEED,
-            KeyCode::Left  => self.velocity.x = -AVATAR_H_SPEED,
+            KeyCode::Up => self.velocity.y = -AVATAR_V_SPEED,
+            KeyCode::Down => self.velocity.y = AVATAR_V_SPEED,
+            KeyCode::Left => self.velocity.x = -AVATAR_H_SPEED,
             KeyCode::Right => self.velocity.x = AVATAR_H_SPEED,
             _ => {}
         }
@@ -89,19 +88,35 @@ impl Avatar {
 
     fn key_up_event(&mut self, keyCode: KeyCode, input: &InputState) {
         match keyCode {
-            KeyCode::Up    => {
-                self.velocity.y = if input.arrowDownDown { AVATAR_V_SPEED } else { 0. }
+            KeyCode::Up => {
+                self.velocity.y = if input.arrow_down_down {
+                    AVATAR_V_SPEED
+                } else {
+                    0.
+                }
             }
             KeyCode::Down => {
-                self.velocity.y = if input.arrowUpDown { -AVATAR_V_SPEED } else { 0. }
+                self.velocity.y = if input.arrow_up_down {
+                    -AVATAR_V_SPEED
+                } else {
+                    0.
+                }
             }
 
             KeyCode::Left => {
-                self.velocity.x = if input.arrowRightDown { AVATAR_H_SPEED } else { 0. }
-            } 
+                self.velocity.x = if input.arrow_right_down {
+                    AVATAR_H_SPEED
+                } else {
+                    0.
+                }
+            }
             KeyCode::Right => {
-                self.velocity.x = if input.arrowLeftDown { -AVATAR_H_SPEED } else { 0. }
-            } 
+                self.velocity.x = if input.arrow_left_down {
+                    -AVATAR_H_SPEED
+                } else {
+                    0.
+                }
+            }
             _ => {}
         }
     }
@@ -111,19 +126,19 @@ struct Sprite {
     frame_timer: i32,
     n_frames: i32,
     frame_duration: i32,
-    sheet: Image
+    sheet: Image,
 }
 
 struct SpriteParam {
     n_frames: i32,
-    frame_duration: i32
+    frame_duration: i32,
 }
 
 impl Default for SpriteParam {
     fn default() -> SpriteParam {
         SpriteParam {
             n_frames: 1,
-            frame_duration: 1
+            frame_duration: 1,
         }
     }
 }
@@ -134,14 +149,14 @@ impl Sprite {
             frame_timer: 0,
             n_frames: n_frames,
             frame_duration: frame_duration,
-            sheet: sheet
+            sheet: sheet,
         }
     }
 
     // Assume FilterMode::Nearest (no antialiasing), for pixel art
     fn load(n_frames: i32, frame_duration: i32, path: &Path, ctx: &mut Context) -> Sprite {
-        let mut sheet: Image = Image::new(ctx, path)
-            .expect(format!("{:?} not found!", path).as_str());
+        let mut sheet: Image =
+            Image::new(ctx, path).expect(format!("{:?} not found!", path).as_str());
         sheet.set_filter(FilterMode::Nearest);
 
         Sprite::new(n_frames, frame_duration, sheet)
@@ -160,22 +175,23 @@ impl Sprite {
     }
 
     fn nth_frame_rect(nth: i32, n_frames: i32) -> Rect {
-        let width = 1./n_frames as f32;
+        let width = 1. / n_frames as f32;
         let x = nth as f32 * width;
         Rect::new(x, 0., width, 1.)
     }
 
     fn draw(&self, ctx: &mut Context, dest: Point2<i32>) -> GameResult<()> {
-        let drawParam = PixelDrawParam::default().src(self.curr_frame_rect())
-                                                 .dest(dest);
+        let draw_param = PixelDrawParam::default()
+            .src(self.curr_frame_rect())
+            .dest(dest);
 
-        self.sheet.pixelDraw(ctx, drawParam)
+        self.sheet.pixel_draw(ctx, draw_param)
     }
 }
 
 struct Level {
     groundTiles: Vec<Tile>,
-    playerStartLoc: Point2<i32>
+    playerStartLoc: Point2<i32>,
 }
 
 const TILE_SIZE: i32 = 16;
@@ -202,12 +218,14 @@ impl Level {
             }
         }
 
-        Level { groundTiles: groundTiles, playerStartLoc: playerStartLoc }
+        Level {
+            groundTiles: groundTiles,
+            playerStartLoc: playerStartLoc,
+        }
     }
 
     fn load(path: &Path, ctx: &mut Context) -> Level {
-        let mut file = filesystem::open(ctx, path)
-            .expect("Couldn't find level!");
+        let mut file = filesystem::open(ctx, path).expect("Couldn't find level!");
         let mut levelStr = String::new();
         file.read_to_string(&mut levelStr)
             .expect("couldn't read file!");
@@ -217,7 +235,7 @@ impl Level {
 }
 
 struct Tile {
-    position: Point2<i32>
+    position: Point2<i32>,
 }
 
 impl Tile {
@@ -227,39 +245,45 @@ impl Tile {
 
     // TODO: create load function
 
-    fn draw(&self, ctx: &mut Context, tileImg: &Image) -> GameResult<()> {
-        let drawParam = DrawParam::default().dest(floatP2(self.position * PIXEL_SIZE))
-                                            .scale(Vector2::new(PIXEL_SIZE as f32, PIXEL_SIZE as f32));
-        tileImg.draw(ctx, drawParam)
+    fn draw(&self, ctx: &mut Context, tile_img: &Image) -> GameResult<()> {
+        let draw_param = DrawParam::default()
+            .dest(float_p2(self.position * PIXEL_SIZE))
+            .scale(Vector2::new(PIXEL_SIZE as f32, PIXEL_SIZE as f32));
+        tile_img.draw(ctx, draw_param)
     }
 }
 
 // both of these are nasty @HACKs
-fn floatP2(p: Point2<i32>) -> Point2<f32> {
+fn float_p2(p: Point2<i32>) -> Point2<f32> {
     Point2::new(p.x as f32, p.y as f32)
 }
 
-fn roundP2(p: Point2<f32>) -> Point2<i32> {
+fn round_p2(p: Point2<f32>) -> Point2<i32> {
     Point2::new(p.x.round() as i32, p.y.round() as i32)
 }
 
 struct InputState {
-    arrowLeftDown: bool,
-    arrowRightDown: bool,
-    arrowUpDown: bool,
-    arrowDownDown: bool,
+    arrow_left_down: bool,
+    arrow_right_down: bool,
+    arrow_up_down: bool,
+    arrow_down_down: bool,
 
-    spaceDown: bool
+    space_down: bool,
 }
 
 impl ggez::event::EventHandler for Platformer {
-
-    fn key_down_event(&mut self, ctx: &mut Context, keycode: KeyCode, _keymod: KeyMods, _repeat: bool) {
+    fn key_down_event(
+        &mut self,
+        ctx: &mut Context,
+        keycode: KeyCode,
+        _keymod: KeyMods,
+        _repeat: bool,
+    ) {
         match keycode {
-            KeyCode::Left => self.input.arrowLeftDown = true,
-            KeyCode::Right => self.input.arrowRightDown = true,
-            KeyCode::Up => self.input.arrowUpDown = true,
-            KeyCode::Down => self.input.arrowDownDown = true,
+            KeyCode::Left => self.input.arrow_left_down = true,
+            KeyCode::Right => self.input.arrow_right_down = true,
+            KeyCode::Up => self.input.arrow_up_down = true,
+            KeyCode::Down => self.input.arrow_down_down = true,
 
             KeyCode::Escape => quit(ctx),
             _ => {}
@@ -270,10 +294,10 @@ impl ggez::event::EventHandler for Platformer {
 
     fn key_up_event(&mut self, ctx: &mut Context, keycode: KeyCode, _keymod: KeyMods) {
         match keycode {
-            KeyCode::Left => self.input.arrowLeftDown = false,
-            KeyCode::Right => self.input.arrowRightDown = false,
-            KeyCode::Up => self.input.arrowUpDown = false,
-            KeyCode::Down => self.input.arrowDownDown = false,
+            KeyCode::Left => self.input.arrow_left_down = false,
+            KeyCode::Right => self.input.arrow_right_down = false,
+            KeyCode::Up => self.input.arrow_up_down = false,
+            KeyCode::Down => self.input.arrow_down_down = false,
             KeyCode::Escape => quit(ctx),
             _ => {}
         }
@@ -303,22 +327,23 @@ impl ggez::event::EventHandler for Platformer {
 
         clear(ctx, bg_color);
 
-        let perf = Text::new(format!("fps: {:.*} hz, dt: {:.*}ns",
-                                     2, timer::fps(&ctx),
-                                     2, self.dt.subsec_nanos()));
+        let perf = Text::new(format!(
+            "fps: {:.*} hz, dt: {:.*}ns",
+            2,
+            timer::fps(&ctx),
+            2,
+            self.dt.subsec_nanos()
+        ));
         //let debug_msg = Text::new(format!("rect = {:?}", self.guy.curr_frame_rect()));
 
+        perf.draw(ctx, DrawParam::default())?;
 
-        perf.draw( ctx, DrawParam::default() );
-
-        // let iPosition: Point2<i32> = self.avatar.position.into();
-        let iPosition: Point2<i32> = roundP2(self.avatar.position);
-        self.guy.draw(ctx, iPosition);
-        self.explosion.draw(ctx, Point2::new(30, 20));
-        self.laser.draw(ctx, Point2::new(40, 20));
+        self.guy.draw(ctx, round_p2(self.avatar.position))?;
+        self.explosion.draw(ctx, Point2::new(30, 20))?;
+        self.laser.draw(ctx, Point2::new(40, 20))?;
 
         for tile in self.current_level.groundTiles.iter() {
-            tile.draw(ctx, &self.ground);
+            tile.draw(ctx, &self.ground)?;
         }
 
         present(ctx)
@@ -326,21 +351,21 @@ impl ggez::event::EventHandler for Platformer {
 }
 
 trait DrawPixelSpace {
-    fn pixelDraw(&self, ctx: &mut Context, pixelDrawParam: PixelDrawParam) -> GameResult<()>;
+    fn pixel_draw(&self, ctx: &mut Context, pixel_draw_param: PixelDrawParam) -> GameResult<()>;
 }
 
 struct PixelDrawParam {
     src: Rect,
     dest: Point2<i32>,
     scale: Vector2<f32>,
-    offset: Point2<f32>
+    offset: Point2<f32>,
 }
 
 impl PixelDrawParam {
-    fn toDrawParam(&self) -> DrawParam {
+    fn to_draw_param(&self) -> DrawParam {
         DrawParam::default()
             .src(self.src)
-            .dest(floatP2(self.dest * PIXEL_SIZE))
+            .dest(float_p2(self.dest * PIXEL_SIZE))
             .scale(self.scale * PIXEL_SIZE as f32)
             .offset(self.offset * PIXEL_SIZE as f32)
     }
@@ -350,35 +375,38 @@ impl PixelDrawParam {
     }
 
     fn dest(&self, dest: Point2<i32>) -> PixelDrawParam {
-        PixelDrawParam { dest: dest, ..*self }
+        PixelDrawParam {
+            dest: dest,
+            ..*self
+        }
     }
 }
 
 impl Default for PixelDrawParam {
     fn default() -> PixelDrawParam {
-        PixelDrawParam { src: Rect::new(0., 0., 1., 1.),
-                         dest: Point2::new(0, 0),
-                         scale: Vector2::new(1., 1.),
-                         offset: Point2::new(0., 0.) }
+        PixelDrawParam {
+            src: Rect::new(0., 0., 1., 1.),
+            dest: Point2::new(0, 0),
+            scale: Vector2::new(1., 1.),
+            offset: Point2::new(0., 0.),
+        }
     }
 }
 
 impl DrawPixelSpace for Image {
-    fn pixelDraw(&self, ctx: &mut Context, pixelDrawParam: PixelDrawParam) -> GameResult<()> {
-        self.draw(ctx, pixelDrawParam.toDrawParam())
+    fn pixel_draw(&self, ctx: &mut Context, pixel_draw_param: PixelDrawParam) -> GameResult<()> {
+        self.draw(ctx, pixel_draw_param.to_draw_param())
     }
 }
 
 fn main() {
     use ggez::conf::*;
 
-    let winMode: WindowMode = WindowMode::default()
+    let win_mode: WindowMode = WindowMode::default()
         .fullscreen_type(FullscreenType::True)
-        .dimensions( (240*PIXEL_SIZE) as f32
-                   , (160*PIXEL_SIZE) as f32); 
+        .dimensions((240 * PIXEL_SIZE) as f32, (160 * PIXEL_SIZE) as f32);
 
-    let c = conf::Conf::new()
-        .window_mode(winMode);
+    let c = conf::Conf::new().window_mode(win_mode);
 
     let res_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("resources");
     let (ref mut ctx, ref mut event_loop) = ContextBuilder::new("hello_ggez", "Jimmy")
@@ -390,5 +418,4 @@ fn main() {
     let mut platformer = Platformer::new(ctx);
 
     event::run(ctx, event_loop, &mut platformer).unwrap();
-
 }
