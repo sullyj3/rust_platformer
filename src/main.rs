@@ -279,6 +279,35 @@ impl ggez::event::EventHandler for Platformer {
     }
 }
 
+trait DrawPixelSpace {
+    fn pixelDraw(&self, ctx: &mut Context, drawParam: DrawParam, position: Point2<i32>);
+}
+
+struct PixelDrawParam {
+    src: Rect,
+    dest: Point2<i32>,
+    scale: Vector2<f32>,
+    offset: Point2<f32>
+}
+
+impl Default for PixelDrawParam {
+    fn default() -> PixelDrawParam {
+        PixelDrawParam { src: Rect::new(0., 0., 1., 1.),
+                         dest: Point2::new(0, 0),
+                         scale: Vector2::new(1., 1.),
+                         offset: Point2::new(0., 0.) }
+    }
+}
+
+impl DrawPixelSpace for Image {
+    fn pixelDraw(&self, ctx: &mut Context, drawParam: DrawParam, position: Point2<i32>) {
+        let drawParam = drawParam.dest(floatP2(position * PIXEL_SIZE))
+                                .scale(Vector2::new(PIXEL_SIZE as f32, PIXEL_SIZE as f32));
+
+        self.draw(ctx, drawParam);
+    }
+}
+
 fn main() {
     use ggez::conf::*;
 
