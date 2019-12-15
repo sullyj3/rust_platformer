@@ -3,8 +3,8 @@ extern crate ggez;
 extern crate rand;
 
 use std::io::prelude::*;
-use std::io::Result;
-use std::fs::File;
+//use std::io::Result;
+//use std::fs::File;
 use std::path::*;
 // use std::collections::HashMap;
 
@@ -30,7 +30,9 @@ struct Platformer {
     laser: Sprite,
     ground: Tile,
 
-    avatar: Avatar
+    avatar: Avatar,
+    current_level: Level
+
 }
 
 impl Platformer {
@@ -58,7 +60,8 @@ impl Platformer {
                 arrowDownDown:  false,
 
                 spaceDown:      false
-            }
+            },
+            current_level: Level::load(Path::new("/levels/level1.txt"), ctx)
         };
 
         platformer
@@ -194,12 +197,14 @@ impl Level {
         Level { groundTiles: groundTiles, playerStartLoc: playerStartLoc }
     }
 
-    fn load(path: &Path) -> Result<Level> {
-        let mut file = File::open(path)?;
+    fn load(path: &Path, ctx: &mut Context) -> Level {
+        let mut file = filesystem::open(ctx, path)
+            .expect("Couldn't find level!");
         let mut levelStr = String::new();
-        file.read_to_string(&mut levelStr)?;
+        file.read_to_string(&mut levelStr)
+            .expect("couldn't read file!");
 
-        Ok(Level::fromString(levelStr))
+        Level::fromString(levelStr)
     }
 }
 
