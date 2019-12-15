@@ -2,6 +2,9 @@ extern crate ggez;
 //extern crate cgmath;
 extern crate rand;
 
+use std::io::prelude::*;
+use std::io::Result;
+use std::fs::File;
 use std::path::*;
 // use std::collections::HashMap;
 
@@ -165,6 +168,38 @@ impl Sprite {
                                                  .dest(dest);
 
         self.sheet.pixelDraw(ctx, drawParam)
+    }
+}
+
+struct Level {
+    groundTiles: Vec<Point2<i32>>,
+    playerStartLoc: Point2<i32>
+}
+
+impl Level {
+    fn fromString(s: String) -> Level {
+        let mut groundTiles = Vec::new();
+        let mut playerStartLoc = Point2::new(0, 0);
+
+        for (y, line) in s.lines().enumerate() {
+            for (x, char) in line.char_indices() {
+                if char == 'g' {
+                    groundTiles.push(Point2::new(x as i32, y as i32));
+                } else if char == 'p' {
+                    playerStartLoc = Point2::new(x as i32, y as i32);
+                }
+            }
+        }
+
+        Level { groundTiles: groundTiles, playerStartLoc: playerStartLoc }
+    }
+
+    fn load(path: &Path) -> Result<Level> {
+        let mut file = File::open(path)?;
+        let mut levelStr = String::new();
+        file.read_to_string(&mut levelStr)?;
+
+        Ok(Level::fromString(levelStr))
     }
 }
 
