@@ -8,8 +8,8 @@ use std::io::prelude::*;
 use std::path::*;
 // use std::collections::HashMap;
 
-use rand::rngs::ThreadRng;
-use rand::thread_rng;
+//use rand::rngs::ThreadRng;
+//use rand::thread_rng;
 
 use ggez::event::{quit, KeyCode, KeyMods};
 use ggez::graphics::*;
@@ -23,7 +23,7 @@ const PIXEL_SIZE: i32 = 5;
 struct Platformer {
     input: InputState,
 
-    rng: ThreadRng,
+    //rng: ThreadRng,
     dt: std::time::Duration,
     guy: Sprite,
     explosion: Sprite,
@@ -36,21 +36,21 @@ struct Platformer {
 
 impl Platformer {
     fn new(ctx: &mut Context) -> Platformer {
-        let mut groundImg = Image::new(ctx, Path::new("/ground.png")).unwrap();
-        groundImg.set_filter(FilterMode::Nearest);
+        let mut ground_img = Image::new(ctx, Path::new("/ground.png")).unwrap();
+        ground_img.set_filter(FilterMode::Nearest);
         let current_level = Level::load(Path::new("/levels/level1.txt"), ctx);
 
         Platformer {
             dt: std::time::Duration::new(0, 0),
-            rng: thread_rng(),
+            //rng: thread_rng(),
 
             guy: Sprite::load(3, 5, Path::new("/guy.png"), ctx),
             explosion: Sprite::load(6, 5, Path::new("/explosion.png"), ctx),
             laser: Sprite::load(4, 5, Path::new("/laser.png"), ctx),
-            ground: groundImg,
+            ground: ground_img,
 
             avatar: Avatar {
-                position: float_p2(current_level.playerStartLoc),
+                position: float_p2(current_level.player_start_loc),
                 velocity: Vector2::new(0., 0.),
             },
             input: InputState {
@@ -76,8 +76,8 @@ struct Avatar {
 }
 
 impl Avatar {
-    fn key_down_event(&mut self, keyCode: KeyCode, _input: &InputState) {
-        match keyCode {
+    fn key_down_event(&mut self, keycode: KeyCode, _input: &InputState) {
+        match keycode {
             KeyCode::Up => self.velocity.y = -AVATAR_V_SPEED,
             KeyCode::Down => self.velocity.y = AVATAR_V_SPEED,
             KeyCode::Left => self.velocity.x = -AVATAR_H_SPEED,
@@ -86,8 +86,8 @@ impl Avatar {
         }
     }
 
-    fn key_up_event(&mut self, keyCode: KeyCode, input: &InputState) {
-        match keyCode {
+    fn key_up_event(&mut self, keycode: KeyCode, input: &InputState) {
+        match keycode {
             KeyCode::Up => {
                 self.velocity.y = if input.arrow_down_down {
                     AVATAR_V_SPEED
@@ -190,16 +190,16 @@ impl Sprite {
 }
 
 struct Level {
-    groundTiles: Vec<Tile>,
-    playerStartLoc: Point2<i32>,
+    ground_tiles: Vec<Tile>,
+    player_start_loc: Point2<i32>,
 }
 
 const TILE_SIZE: i32 = 16;
 
 impl Level {
-    fn fromString(s: String) -> Level {
-        let mut groundTiles = Vec::new();
-        let mut playerStartLoc = Point2::new(0, 0);
+    fn from_string(s: String) -> Level {
+        let mut ground_tiles = Vec::new();
+        let mut player_start_loc = Point2::new(0, 0);
 
         for (j, line) in s.lines().enumerate() {
             for (i, char) in line.char_indices() {
@@ -210,27 +210,27 @@ impl Level {
 
                 if char == 'g' {
                     // BUG these are tile width coordinates, not pixel width
-                    let tilePosition = Point2::new(x, y);
-                    groundTiles.push(Tile::new(tilePosition));
+                    let tile_position = Point2::new(x, y);
+                    ground_tiles.push(Tile::new(tile_position));
                 } else if char == 'p' {
-                    playerStartLoc = Point2::new(x, y);
+                    player_start_loc = Point2::new(x, y);
                 }
             }
         }
 
         Level {
-            groundTiles: groundTiles,
-            playerStartLoc: playerStartLoc,
+            ground_tiles: ground_tiles,
+            player_start_loc: player_start_loc,
         }
     }
 
     fn load(path: &Path, ctx: &mut Context) -> Level {
         let mut file = filesystem::open(ctx, path).expect("Couldn't find level!");
-        let mut levelStr = String::new();
-        file.read_to_string(&mut levelStr)
+        let mut level_str = String::new();
+        file.read_to_string(&mut level_str)
             .expect("couldn't read file!");
 
-        Level::fromString(levelStr)
+        Level::from_string(level_str)
     }
 }
 
@@ -276,7 +276,7 @@ impl ggez::event::EventHandler for Platformer {
         &mut self,
         ctx: &mut Context,
         keycode: KeyCode,
-        _keymod: KeyMods,
+        _key_mod: KeyMods,
         _repeat: bool,
     ) {
         match keycode {
@@ -342,7 +342,7 @@ impl ggez::event::EventHandler for Platformer {
         self.explosion.draw(ctx, Point2::new(30, 20))?;
         self.laser.draw(ctx, Point2::new(40, 20))?;
 
-        for tile in self.current_level.groundTiles.iter() {
+        for tile in self.current_level.ground_tiles.iter() {
             tile.draw(ctx, &self.ground)?;
         }
 
