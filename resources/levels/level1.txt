@@ -1,5 +1,10 @@
-gggggggggg
-g        g
-g        g
-g   p    g
-gggggggggg
+ggggggggggggggg
+g             g
+g             g
+g             g
+g             g
+g             g
+g             g
+g             g
+g   p         g
+ggggggggggggggg

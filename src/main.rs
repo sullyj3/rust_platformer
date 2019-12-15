@@ -28,7 +28,7 @@ struct Platformer {
     guy: Sprite,
     explosion: Sprite,
     laser: Sprite,
-    ground: Tile,
+    ground: Image,
 
     avatar: Avatar,
     current_level: Level
@@ -39,18 +39,19 @@ impl Platformer {
     fn new(ctx: &mut Context) -> Platformer {
         let mut groundImg = Image::new(ctx, Path::new("/ground.png")).unwrap();
         groundImg.set_filter(FilterMode::Nearest);
+        let current_level = Level::load(Path::new("/levels/level1.txt"), ctx);
 
-        let mut platformer = Platformer {
+        Platformer {
             dt: std::time::Duration::new(0,0),
             rng: thread_rng(),
 
             guy: Sprite::load(3, 5, Path::new("/guy.png"), ctx),
             explosion: Sprite::load(6, 5, Path::new("/explosion.png"), ctx),
             laser: Sprite::load(4, 5, Path::new("/laser.png"), ctx),
-            ground: Tile::new(groundImg, Point2::new(50, 50)),
+            ground: groundImg,
 
             avatar: Avatar { 
-                position: Point2::new(60., 60.),
+                position: floatP2(current_level.playerStartLoc),
                 velocity: Vector2::new(0., 0.)
             },
             input: InputState {
@@ -61,10 +62,8 @@ impl Platformer {
 
                 spaceDown:      false
             },
-            current_level: Level::load(Path::new("/levels/level1.txt"), ctx)
-        };
-
-        platformer
+            current_level: current_level
+        }
     }
 }
 
@@ -175,21 +174,30 @@ impl Sprite {
 }
 
 struct Level {
-    groundTiles: Vec<Point2<i32>>,
+    groundTiles: Vec<Tile>,
     playerStartLoc: Point2<i32>
 }
+
+const TILE_SIZE: i32 = 16;
 
 impl Level {
     fn fromString(s: String) -> Level {
         let mut groundTiles = Vec::new();
         let mut playerStartLoc = Point2::new(0, 0);
 
-        for (y, line) in s.lines().enumerate() {
-            for (x, char) in line.char_indices() {
+        for (j, line) in s.lines().enumerate() {
+            for (i, char) in line.char_indices() {
+                println!("loading level:");
+                println!("{} {} {}", i, j, char);
+
+                let (x, y): (i32, i32) = (i as i32 * TILE_SIZE, j as i32 * TILE_SIZE);
+
                 if char == 'g' {
-                    groundTiles.push(Point2::new(x as i32, y as i32));
+                    // BUG these are tile width coordinates, not pixel width
+                    let tilePosition = Point2::new(x, y);
+                    groundTiles.push(Tile::new(tilePosition));
                 } else if char == 'p' {
-                    playerStartLoc = Point2::new(x as i32, y as i32);
+                    playerStartLoc = Point2::new(x, y);
                 }
             }
         }
@@ -209,21 +217,20 @@ impl Level {
 }
 
 struct Tile {
-    image: Image,
     position: Point2<i32>
 }
 
 impl Tile {
-    fn new(image: Image, position: Point2<i32>) -> Tile {
-        Tile { image: image, position: position }
+    fn new(position: Point2<i32>) -> Tile {
+        Tile { position: position }
     }
 
     // TODO: create load function
 
-    fn draw(&self, ctx: &mut Context) -> GameResult<()> {
+    fn draw(&self, ctx: &mut Context, tileImg: &Image) -> GameResult<()> {
         let drawParam = DrawParam::default().dest(floatP2(self.position * PIXEL_SIZE))
                                             .scale(Vector2::new(PIXEL_SIZE as f32, PIXEL_SIZE as f32));
-        self.image.draw(ctx, drawParam)
+        tileImg.draw(ctx, drawParam)
     }
 }
 
@@ -309,7 +316,10 @@ impl ggez::event::EventHandler for Platformer {
         self.guy.draw(ctx, iPosition);
         self.explosion.draw(ctx, Point2::new(30, 20));
         self.laser.draw(ctx, Point2::new(40, 20));
-        self.ground.draw(ctx);
+
+        for tile in self.current_level.groundTiles.iter() {
+            tile.draw(ctx, &self.ground);
+        }
 
         present(ctx)
     }
