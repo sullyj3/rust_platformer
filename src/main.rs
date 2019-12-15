@@ -15,6 +15,8 @@ use ggez::event::{KeyCode, KeyMods, quit};
 //use cgmath::*;
 use nalgebra::*;
 
+const PIXEL_SIZE: i32 = 5;
+
 struct Platformer {
     input: InputState,
 
@@ -23,23 +25,27 @@ struct Platformer {
     guy: Sprite,
     explosion: Sprite,
     laser: Sprite,
-    ground: Image,
+    ground: Tile,
 
     avatar: Avatar
 }
 
 impl Platformer {
     fn new(ctx: &mut Context) -> Platformer {
+        let mut groundImg = Image::new(ctx, Path::new("/ground.png")).unwrap();
+        groundImg.set_filter(FilterMode::Nearest);
+
         let mut platformer = Platformer {
             dt: std::time::Duration::new(0,0),
             rng: thread_rng(),
+
             guy: Sprite::load(3, 5, Path::new("/guy.png"), ctx),
             explosion: Sprite::load(6, 5, Path::new("/explosion.png"), ctx),
             laser: Sprite::load(4, 5, Path::new("/laser.png"), ctx),
-            ground: Image::new(ctx, Path::new("/ground.png")).unwrap(),
+            ground: Tile::new(groundImg, Point2::new(50, 50)),
 
             avatar: Avatar { 
-                position: Point2::new(500., 500.),
+                position: Point2::new(60., 60.),
                 velocity: Vector2::new(0., 0.)
             },
             input: InputState {
@@ -51,16 +57,16 @@ impl Platformer {
                 spaceDown:      false
             }
         };
-        platformer.ground.set_filter(FilterMode::Nearest);
 
         platformer
     }
 }
 
-const AVATAR_H_SPEED: f32 = 6.;
-const AVATAR_V_SPEED: f32 = 6.;
+const AVATAR_H_SPEED: f32 = 1.;
+const AVATAR_V_SPEED: f32 = 1.;
 
 struct Avatar {
+    // pixel space
     position: Point2<f32>,
     velocity: Vector2<f32>
 }
@@ -154,9 +160,44 @@ impl Sprite {
         Rect::new(x, 0., width, 1.)
     }
 
-    fn draw(&self, ctx: &mut Context, param: DrawParam) -> GameResult<()> {
-        self.sheet.draw(ctx, param.src(self.curr_frame_rect()))
+    fn draw(&self, ctx: &mut Context, dest: Point2<i32>) -> GameResult<()> {
+        let iDest: Point2<i32> = PIXEL_SIZE * dest;
+        // @hack I don't understand nalgebra, how do I do this properly?
+        let fDest: Point2<f32> = Point2::new(iDest.x as f32, iDest.y as f32);
+        let param = DrawParam::default().src(self.curr_frame_rect())
+                                        .dest(fDest)
+                                        .scale(Vector2::new(PIXEL_SIZE as f32, PIXEL_SIZE as f32));
+                                        
+        self.sheet.draw(ctx, param)
     }
+}
+
+struct Tile {
+    image: Image,
+    position: Point2<i32>
+}
+
+impl Tile {
+    fn new(image: Image, position: Point2<i32>) -> Tile {
+        Tile { image: image, position: position }
+    }
+
+    // TODO: create load function
+
+    fn draw(&self, ctx: &mut Context) -> GameResult<()> {
+        let drawParam = DrawParam::default().dest(floatP2(self.position * PIXEL_SIZE))
+                                            .scale(Vector2::new(PIXEL_SIZE as f32, PIXEL_SIZE as f32));
+        self.image.draw(ctx, drawParam)
+    }
+}
+
+// both of these are nasty @HACKs
+fn floatP2(p: Point2<i32>) -> Point2<f32> {
+    Point2::new(p.x as f32, p.y as f32)
+}
+
+fn roundP2(p: Point2<f32>) -> Point2<i32> {
+    Point2::new(p.x.round() as i32, p.y.round() as i32)
 }
 
 struct InputState {
@@ -227,27 +268,12 @@ impl ggez::event::EventHandler for Platformer {
 
         perf.draw( ctx, DrawParam::default() );
 
-
-        self.guy.draw(ctx, 
-                      DrawParam::default()
-                        .scale(Vector2::new(5., 5.))
-                        .dest(self.avatar.position)
-                     );
-        self.explosion.draw(ctx, 
-                      DrawParam::default()
-                        .scale(Vector2::new(5., 5.))
-                        .dest(Point2::new(300.0, 200.0))
-                     );
-        self.laser.draw(ctx, 
-                      DrawParam::default()
-                        .scale(Vector2::new(5., 5.))
-                        .dest(Point2::new(400.0, 200.0))
-                     );
-        self.ground.draw(ctx,
-                         DrawParam::default()
-                         .scale(Vector2::new(5., 5.))
-                         .dest(Point2::new(200.0, 400.0))
-                        );
+        // let iPosition: Point2<i32> = self.avatar.position.into();
+        let iPosition: Point2<i32> = roundP2(self.avatar.position);
+        self.guy.draw(ctx, iPosition);
+        self.explosion.draw(ctx, Point2::new(30, 20));
+        self.laser.draw(ctx, Point2::new(40, 20));
+        self.ground.draw(ctx);
 
         present(ctx)
     }
@@ -258,7 +284,8 @@ fn main() {
 
     let winMode: WindowMode = WindowMode::default()
         .fullscreen_type(FullscreenType::True)
-        .dimensions(2256.0, 1504.0);
+        .dimensions( (240*PIXEL_SIZE) as f32
+                   , (160*PIXEL_SIZE) as f32); 
 
     let c = conf::Conf::new()
         .window_mode(winMode);
