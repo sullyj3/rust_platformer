@@ -119,6 +119,13 @@ impl Avatar {
     }
 }
 
+impl AABB for Avatar {
+    fn aabb(&self) -> Rect {
+        let (x, y) = (self.position.x, self.position.y);
+        Rect::new(x, y, 7.0, 16.0)
+    }
+}
+
 struct Sprite {
     frame_timer: i32,
     n_frames: i32,
@@ -193,6 +200,11 @@ struct Level {
 
 const TILE_SIZE: i32 = 16;
 
+trait AABB {
+    fn aabb(&self) -> Rect;
+}
+
+
 impl Level {
     fn from_string(s: String) -> Level {
         let mut ground_tiles = Vec::new();
@@ -247,6 +259,12 @@ impl Tile {
     }
 }
 
+impl AABB for Tile {
+    fn aabb(&self) -> Rect {
+        Rect::new(self.position.x as f32, self.position.y as f32, TILE_SIZE as f32, TILE_SIZE as f32)
+    }
+}
+
 // both of these are nasty @HACKs
 fn float_p2(p: Point2<i32>) -> Point2<f32> {
     Point2::new(p.x as f32, p.y as f32)
@@ -263,6 +281,14 @@ struct InputState {
     arrow_down_down: bool,
 
     space_down: bool,
+}
+
+fn x_component(v: Vector2<f32>) -> Vector2<f32> {
+    Vector2::new(v.x, 0.0)
+}
+
+fn y_component(v: Vector2<f32>) -> Vector2<f32> {
+    Vector2::new(0.0, v.y)
 }
 
 impl ggez::event::EventHandler for Platformer {
@@ -305,7 +331,25 @@ impl ggez::event::EventHandler for Platformer {
         self.explosion.inc_frame_timer();
         self.laser.inc_frame_timer();
 
-        self.avatar.position += self.avatar.velocity;
+        // x
+        let old_position = self.avatar.position.clone();
+        self.avatar.position += x_component(self.avatar.velocity);
+        let avatarAABB = self.avatar.aabb();
+        for tile in self.current_level.ground_tiles.iter() {
+            if avatarAABB.overlaps(&tile.aabb()) {
+                self.avatar.position = old_position;
+            }
+        }
+
+        // y
+        let old_position = self.avatar.position.clone();
+        self.avatar.position += y_component(self.avatar.velocity);
+        let avatarAABB = self.avatar.aabb();
+        for tile in self.current_level.ground_tiles.iter() {
+            if avatarAABB.overlaps(&tile.aabb()) {
+                self.avatar.position = old_position;
+            }
+        }
 
         Ok(())
     }
@@ -364,7 +408,7 @@ fn main() {
         .unwrap();
 
     let coords: Rect = Rect::new(0.0, 0.0, pix_width, pix_height);
-    set_screen_coordinates(ctx, coords)screen_coordinates(ctx, coords);
+    set_screen_coordinates(ctx, coords);
 
     let mut platformer = Platformer::new(ctx);
 
