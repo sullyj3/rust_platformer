@@ -32,6 +32,8 @@ struct Platformer {
     current_level: Level,
 }
 
+const GRAVITY_STRENGTH: f32 = 0.25; // px/frame/frame?
+
 impl Platformer {
     fn new(ctx: &mut Context) -> Platformer {
         let mut ground_img = Image::new(ctx, Path::new("/ground.png")).unwrap();
@@ -48,8 +50,11 @@ impl Platformer {
             ground: ground_img,
 
             avatar: Avatar {
-                position: float_p2(current_level.player_start_loc),
-                velocity: Vector2::new(0., 0.),
+                physics: Physics { 
+                    position: float_p2(current_level.player_start_loc),
+                    velocity: Vector2::new(0., 0.),
+                    acceleration: Vector2::new(0.0, GRAVITY_STRENGTH),
+                },
             },
             input: InputState {
                 arrow_left_down: false,
@@ -68,47 +73,76 @@ const AVATAR_H_SPEED: f32 = 1.;
 const AVATAR_V_SPEED: f32 = 1.;
 
 struct Avatar {
+    physics: Physics,
+}
+
+struct Physics {
     position: Point2<f32>,
     velocity: Vector2<f32>,
+    acceleration: Vector2<f32>,
 }
+
+impl Physics {
+    fn apply_acceleration(&mut self) {
+        self.velocity += self.acceleration;
+    }
+
+    // return previous position
+    fn apply_x_velocity(&mut self) -> Point2<f32> {
+        let previous_position = self.position;
+        self.position += x_component(self.velocity);
+        previous_position
+    }
+
+    // return previous position
+    fn apply_y_velocity(&mut self) -> Point2<f32> {
+        let previous_position = self.position;
+        self.position += y_component(self.velocity);
+        previous_position
+    }
+
+}
+
+const AVATAR_JUMP_SPEED: f32 = -3.;
 
 impl Avatar {
     fn key_down_event(&mut self, keycode: KeyCode, _input: &InputState) {
         match keycode {
-            KeyCode::Up => self.velocity.y = -AVATAR_V_SPEED,
-            KeyCode::Down => self.velocity.y = AVATAR_V_SPEED,
-            KeyCode::Left => self.velocity.x = -AVATAR_H_SPEED,
-            KeyCode::Right => self.velocity.x = AVATAR_H_SPEED,
+            // KeyCode::Up => self.physics.velocity.y = -AVATAR_V_SPEED,
+            // KeyCode::Down => self.physics.velocity.y = AVATAR_V_SPEED,
+            KeyCode::Left => self.physics.velocity.x = -AVATAR_H_SPEED,
+            KeyCode::Right => self.physics.velocity.x = AVATAR_H_SPEED,
+            KeyCode::Space => self.physics.velocity.y = AVATAR_JUMP_SPEED,
             _ => {}
         }
     }
 
     fn key_up_event(&mut self, keycode: KeyCode, input: &InputState) {
         match keycode {
-            KeyCode::Up => {
-                self.velocity.y = if input.arrow_down_down {
-                    AVATAR_V_SPEED
-                } else {
-                    0.
-                }
-            }
-            KeyCode::Down => {
-                self.velocity.y = if input.arrow_up_down {
-                    -AVATAR_V_SPEED
-                } else {
-                    0.
-                }
-            }
+            // KeyCode::Up => {
+            //     self.physics.velocity.y = if input.arrow_down_down {
+            //         AVATAR_V_SPEED
+            //     } else {
+            //         0.
+            //     }
+            // }
+            // KeyCode::Down => {
+            //     self.physics.velocity.y = if input.arrow_up_down {
+            //         -AVATAR_V_SPEED
+            //     } else {
+            //         0.
+            //     }
+            // }
 
             KeyCode::Left => {
-                self.velocity.x = if input.arrow_right_down {
+                self.physics.velocity.x = if input.arrow_right_down {
                     AVATAR_H_SPEED
                 } else {
                     0.
                 }
             }
             KeyCode::Right => {
-                self.velocity.x = if input.arrow_left_down {
+                self.physics.velocity.x = if input.arrow_left_down {
                     -AVATAR_H_SPEED
                 } else {
                     0.
@@ -121,7 +155,7 @@ impl Avatar {
 
 impl AABB for Avatar {
     fn aabb(&self) -> Rect {
-        let (x, y) = (self.position.x, self.position.y);
+        let (x, y) = (self.physics.position.x, self.physics.position.y);
         Rect::new(x, y, 7.0, 16.0)
     }
 }
@@ -327,27 +361,32 @@ impl ggez::event::EventHandler for Platformer {
 
     fn update(&mut self, ctx: &mut Context) -> GameResult<()> {
         self.dt = timer::delta(ctx);
+
         self.guy.inc_frame_timer();
         self.explosion.inc_frame_timer();
         self.laser.inc_frame_timer();
 
+        self.avatar.physics.apply_acceleration();
+
         // x
-        let old_position = self.avatar.position.clone();
-        self.avatar.position += x_component(self.avatar.velocity);
+        let old_position = self.avatar.physics.apply_x_velocity();
         let avatarAABB = self.avatar.aabb();
         for tile in self.current_level.ground_tiles.iter() {
             if avatarAABB.overlaps(&tile.aabb()) {
-                self.avatar.position = old_position;
+                self.avatar.physics.position = old_position;
+                self.avatar.physics.velocity.x = 0.0;
+                break;
             }
         }
 
         // y
-        let old_position = self.avatar.position.clone();
-        self.avatar.position += y_component(self.avatar.velocity);
+        let old_position = self.avatar.physics.apply_y_velocity();
         let avatarAABB = self.avatar.aabb();
         for tile in self.current_level.ground_tiles.iter() {
             if avatarAABB.overlaps(&tile.aabb()) {
-                self.avatar.position = old_position;
+                self.avatar.physics.position = old_position;
+                self.avatar.physics.velocity.y = 0.0;
+                break;
             }
         }
 
@@ -376,7 +415,7 @@ impl ggez::event::EventHandler for Platformer {
 
         perf.draw(ctx, DrawParam::default())?;
 
-        self.guy.draw(ctx, round_p2(self.avatar.position))?;
+        self.guy.draw(ctx, round_p2(self.avatar.physics.position))?;
         self.explosion.draw(ctx, Point2::new(30, 20))?;
         self.laser.draw(ctx, Point2::new(40, 20))?;
 
