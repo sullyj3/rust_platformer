@@ -18,8 +18,6 @@ use ggez::*;
 //use cgmath::*;
 use nalgebra::*;
 
-const PIXEL_SIZE: i32 = 5;
-
 struct Platformer {
     input: InputState,
 
@@ -70,7 +68,6 @@ const AVATAR_H_SPEED: f32 = 1.;
 const AVATAR_V_SPEED: f32 = 1.;
 
 struct Avatar {
-    // pixel space
     position: Point2<f32>,
     velocity: Vector2<f32>,
 }
@@ -181,11 +178,11 @@ impl Sprite {
     }
 
     fn draw(&self, ctx: &mut Context, dest: Point2<i32>) -> GameResult<()> {
-        let draw_param = PixelDrawParam::default()
+        let draw_param = DrawParam::default()
             .src(self.curr_frame_rect())
-            .dest(dest);
+            .dest(float_p2(dest));
 
-        self.sheet.pixel_draw(ctx, draw_param)
+        self.sheet.draw(ctx, draw_param)
     }
 }
 
@@ -203,8 +200,6 @@ impl Level {
 
         for (j, line) in s.lines().enumerate() {
             for (i, char) in line.char_indices() {
-                println!("loading level:");
-                println!("{} {} {}", i, j, char);
 
                 let (x, y): (i32, i32) = (i as i32 * TILE_SIZE, j as i32 * TILE_SIZE);
 
@@ -247,8 +242,7 @@ impl Tile {
 
     fn draw(&self, ctx: &mut Context, tile_img: &Image) -> GameResult<()> {
         let draw_param = DrawParam::default()
-            .dest(float_p2(self.position * PIXEL_SIZE))
-            .scale(Vector2::new(PIXEL_SIZE as f32, PIXEL_SIZE as f32));
+            .dest(float_p2(self.position));
         tile_img.draw(ctx, draw_param)
     }
 }
@@ -350,61 +344,15 @@ impl ggez::event::EventHandler for Platformer {
     }
 }
 
-trait DrawPixelSpace {
-    fn pixel_draw(&self, ctx: &mut Context, pixel_draw_param: PixelDrawParam) -> GameResult<()>;
-}
-
-struct PixelDrawParam {
-    src: Rect,
-    dest: Point2<i32>,
-    scale: Vector2<f32>,
-    offset: Point2<f32>,
-}
-
-impl PixelDrawParam {
-    fn to_draw_param(&self) -> DrawParam {
-        DrawParam::default()
-            .src(self.src)
-            .dest(float_p2(self.dest * PIXEL_SIZE))
-            .scale(self.scale * PIXEL_SIZE as f32)
-            .offset(self.offset * PIXEL_SIZE as f32)
-    }
-
-    fn src(&self, src: Rect) -> PixelDrawParam {
-        PixelDrawParam { src: src, ..*self }
-    }
-
-    fn dest(&self, dest: Point2<i32>) -> PixelDrawParam {
-        PixelDrawParam {
-            dest: dest,
-            ..*self
-        }
-    }
-}
-
-impl Default for PixelDrawParam {
-    fn default() -> PixelDrawParam {
-        PixelDrawParam {
-            src: Rect::new(0., 0., 1., 1.),
-            dest: Point2::new(0, 0),
-            scale: Vector2::new(1., 1.),
-            offset: Point2::new(0., 0.),
-        }
-    }
-}
-
-impl DrawPixelSpace for Image {
-    fn pixel_draw(&self, ctx: &mut Context, pixel_draw_param: PixelDrawParam) -> GameResult<()> {
-        self.draw(ctx, pixel_draw_param.to_draw_param())
-    }
-}
-
 fn main() {
     use ggez::conf::*;
 
+    let (width, height) = (2256.0, 1504.0);
+    let (pix_width, pix_height) = (240.0, 160.0);
+
     let win_mode: WindowMode = WindowMode::default()
         .fullscreen_type(FullscreenType::True)
-        .dimensions((240 * PIXEL_SIZE) as f32, (160 * PIXEL_SIZE) as f32);
+        .dimensions(width, height);
 
     let c = conf::Conf::new().window_mode(win_mode);
 
@@ -414,6 +362,9 @@ fn main() {
         .add_resource_path(res_dir) //???
         .build()
         .unwrap();
+
+    let coords: Rect = Rect::new(0.0, 0.0, pix_width, pix_height);
+    set_screen_coordinates(ctx, coords)screen_coordinates(ctx, coords);
 
     let mut platformer = Platformer::new(ctx);
 
