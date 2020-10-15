@@ -18,6 +18,20 @@ use ggez::*;
 //use cgmath::*;
 use nalgebra::*;
 
+
+const GRAVITY_STRENGTH: f32 = 0.25; // px/frame/frame?
+const AVATAR_H_SPEED: f32 = 1.;
+const AVATAR_V_SPEED: f32 = 1.;
+const AVATAR_JUMP_SPEED: f32 = -4.;
+
+const TILE_SIZE: i32 = 16;
+
+const SCREEN_WIDTH: i16 = 2256;
+const SCREEN_HEIGHT: i16 = 1504;
+
+const WORLD_WIDTH: i16 = 240;
+const WORLD_HEIGHT: i16 = 160;
+
 struct Platformer {
     input: InputState,
 
@@ -30,15 +44,18 @@ struct Platformer {
 
     avatar: Avatar,
     current_level: Level,
+
+    ui_canvas: Canvas,
+    world_canvas: Canvas,
 }
 
-const GRAVITY_STRENGTH: f32 = 0.25; // px/frame/frame?
 
 impl Platformer {
     fn new(ctx: &mut Context) -> Platformer {
         let mut ground_img = Image::new(ctx, Path::new("/ground.png")).unwrap();
         ground_img.set_filter(FilterMode::Nearest);
         let current_level = Level::load(Path::new("/levels/level1.txt"), ctx);
+
 
         Platformer {
             dt: std::time::Duration::new(0, 0),
@@ -65,12 +82,15 @@ impl Platformer {
                 space_down: false,
             },
             current_level: current_level,
+
+            world_canvas: Canvas::new(ctx, 240, 160, ggez::conf::NumSamples::One)
+                .expect("couldn't init world_canvas"),
+            ui_canvas   : Canvas::new(ctx, 2206, 1504, ggez::conf::NumSamples::One)
+                .expect("couldn't init ui_canvas"),
         }
     }
 }
 
-const AVATAR_H_SPEED: f32 = 1.;
-const AVATAR_V_SPEED: f32 = 1.;
 
 struct Avatar {
     physics: Physics,
@@ -103,7 +123,6 @@ impl Physics {
 
 }
 
-const AVATAR_JUMP_SPEED: f32 = -3.;
 
 impl Avatar {
     fn key_down_event(&mut self, keycode: KeyCode, _input: &InputState) {
@@ -232,7 +251,6 @@ struct Level {
     player_start_loc: Point2<i32>,
 }
 
-const TILE_SIZE: i32 = 16;
 
 trait AABB {
     fn aabb(&self) -> Rect;
@@ -394,34 +412,60 @@ impl ggez::event::EventHandler for Platformer {
     }
 
     fn draw(&mut self, ctx: &mut Context) -> GameResult<()> {
-        //use rand::seq::SliceRandom;
+        let bg_blue = Color::new(0.59, 0.75, 0.85, 1.);
+        let RED = Color::new(1.0, 0.0, 0.0, 1.0);
+        let alpha = Color::new(0.0, 0.0, 0.0, 0.0);
 
-        // let RED = Color::new(1.0,0.0,0.0,1.0);
-        // let GREEN = Color::new(0.0,1.0,0.0,1.0);
-        // let BLUE = Color::new(0.0,0.0,1.0,1.0);
-        //
-        let bg_color = Color::new(0.59, 0.75, 0.85, 1.);
+        ///////////
+        // World //
+        ///////////
 
-        clear(ctx, bg_color);
-
-        let perf = Text::new(format!(
-            "fps: {:.*} hz, dt: {:.*}ns",
-            2,
-            timer::fps(&ctx),
-            2,
-            self.dt.subsec_nanos()
-        ));
-        //let debug_msg = Text::new(format!("rect = {:?}", self.guy.curr_frame_rect()));
-
-        perf.draw(ctx, DrawParam::default())?;
+        set_canvas(ctx, Some(&self.world_canvas));
+        clear(ctx, bg_blue);
 
         self.guy.draw(ctx, round_p2(self.avatar.physics.position))?;
-        self.explosion.draw(ctx, Point2::new(30, 20))?;
-        self.laser.draw(ctx, Point2::new(40, 20))?;
-
+        let avatarBB = Mesh::new_rectangle(ctx,
+                                           DrawMode::Stroke(StrokeOptions::default()),
+                                           self.avatar.aabb(),
+                                           RED).unwrap();
+        avatarBB.draw(ctx, DrawParam::default());
+        // self.explosion.draw(ctx, Point2::new(30, 20))?;
+        // self.laser.draw(ctx, Point2::new(40, 20))?;
         for tile in self.current_level.ground_tiles.iter() {
             tile.draw(ctx, &self.ground)?;
         }
+
+        ////////
+        // UI //
+        ////////
+
+        set_canvas(ctx, Some(&self.ui_canvas));
+        clear(ctx, alpha);
+
+        // draw debug info on top
+        // let perf = Text::new(format!(
+        //     "fps: {:.*} hz, dt: {:.*}ns",
+        //     2,
+        //     timer::fps(&ctx),
+        //     2,
+        //     self.dt.subsec_nanos()
+        // ));
+        //perf.draw(ctx, DrawParam::default())?;
+
+        let debug_msg = Text::new(format!("avatar position: {:?}", self.avatar.aabb()));
+        debug_msg.draw(ctx, DrawParam::default())?;
+
+        ////////////////////
+        // Draw canvasses //
+        ////////////////////
+        set_canvas(ctx, None);
+
+        let world_canvas_scale = Vector2::new(SCREEN_WIDTH as f32 / WORLD_WIDTH as f32,
+                                              SCREEN_HEIGHT as f32 / WORLD_HEIGHT as f32);
+
+        self.world_canvas.draw(ctx, DrawParam::default()
+                               .scale(world_canvas_scale))?;
+        self.ui_canvas.draw(ctx, DrawParam::default())?;
 
         present(ctx)
     }
@@ -430,12 +474,9 @@ impl ggez::event::EventHandler for Platformer {
 fn main() {
     use ggez::conf::*;
 
-    let (width, height) = (2256.0, 1504.0);
-    let (pix_width, pix_height) = (240.0, 160.0);
-
     let win_mode: WindowMode = WindowMode::default()
         .fullscreen_type(FullscreenType::True)
-        .dimensions(width, height);
+        .dimensions(SCREEN_WIDTH.into(), SCREEN_HEIGHT.into());
 
     let c = conf::Conf::new().window_mode(win_mode);
 
@@ -445,9 +486,6 @@ fn main() {
         .add_resource_path(res_dir) //???
         .build()
         .unwrap();
-
-    let coords: Rect = Rect::new(0.0, 0.0, pix_width, pix_height);
-    set_screen_coordinates(ctx, coords);
 
     let mut platformer = Platformer::new(ctx);
 
